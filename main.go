@@ -33,10 +33,28 @@ func main() {
 	go b.StartWebhook(ctx)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
-	http.ListenAndServe(":2000", b.WebhookHandler())
+	srv := &http.Server{
+		Addr:    ":8000",
+		Handler: b.WebhookHandler(),
+	}
+
+	go func() {
+		println("HTTP server listening on :8000")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			println("HTTP server error:", err.Error())
+		}
+	}()
+
+	<-ctx.Done()
+
+	if err := srv.Shutdown(context.Background()); err != nil {
+		println("HTTP server shutdown error:", err.Error())
+	}
 
 	// call methods.DeleteWebhook if needed
 }
