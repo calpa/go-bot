@@ -32,15 +32,19 @@ func main() {
 
 	go b.StartWebhook(ctx)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		w.Write([]byte("Hello World"))
 	})
+
+	mux.Handle("/telegram/webhook", b.WebhookHandler())
 
 	srv := &http.Server{
 		Addr:    ":8000",
-		Handler: b.WebhookHandler(),
+		Handler: mux,
 	}
 
 	go func() {
