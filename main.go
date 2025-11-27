@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -41,6 +43,36 @@ func main() {
 	})
 
 	mux.Handle("/telegram/webhook", b.WebhookHandler())
+
+	mux.HandleFunc("/set-webhook", func(w http.ResponseWriter, r *http.Request) {
+		baseURL := os.Getenv("WEBHOOK_BASE_URL")
+		if baseURL == "" {
+			baseURL = "http://localhost:8000"
+		}
+
+		baseURL = strings.TrimRight(baseURL, "/")
+		webhookURL := baseURL + "/telegram/webhook"
+
+		ok, err := b.SetWebhook(r.Context(), &bot.SetWebhookParams{
+			URL: webhookURL,
+		})
+
+		w.Header().Set("Content-Type", "text/plain")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf("failed to set webhook to %s: %v", webhookURL, err)))
+			return
+		}
+
+		if !ok {
+			w.WriteHeader(http.StatusBadGateway)
+			w.Write([]byte(fmt.Sprintf("Telegram did not accept webhook URL: %s", webhookURL)))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(fmt.Sprintf("webhook set to %s", webhookURL)))
+	})
 
 	srv := &http.Server{
 		Addr:    ":8000",
